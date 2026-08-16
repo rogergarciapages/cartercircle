@@ -1,0 +1,99 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Case {
+  id                  String               @id @default(uuid())
+  name                String
+  description         String
+  status              String               @default("ACTIVE")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  anchorPoints        AnchorPoint[]
+  timelineEvents      TimelineEvent[]
+  pointsOfInterest    PointOfInterest[]
+  transportProfiles   TransportProfile[]
+  isochroneQueries    IsochroneQuery[]
+  probabilityModelRuns ProbabilityModelRun[]
+}
+
+model AnchorPoint {
+  id             String          @id @default(uuid())
+  caseId         String
+  case           Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  label          String
+  type           String          // CRIME_SCENE, HOME, WORK, LEISURE, OTHER
+  lat            Float
+  lng            Float
+  weight         Float           @default(1.0)
+  notes          String?
+  sourceRef      String?
+  timelineEvents TimelineEvent[]
+  createdAt      DateTime        @default(now())
+}
+
+model TimelineEvent {
+  id              String       @id @default(uuid())
+  caseId          String
+  case            Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  timestamp       DateTime
+  timeConfidence  String       // confirmed, testimonial, hypothesis
+  description     String
+  personsInvolved String       // JSON string array or comma separated
+  locationRefId   String?
+  locationRef     AnchorPoint? @relation(fields: [locationRefId], references: [id], onDelete: SetNull)
+  sourceRef       String?
+  createdAt       DateTime     @default(now())
+}
+
+model PointOfInterest {
+  id          String   @id @default(uuid())
+  caseId      String
+  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  label       String
+  type        String   // RIVER, WASTE, CONTAINER, OPEN_FIELD, WAREHOUSE, OTHER
+  lat         Float
+  lng         Float
+  notes       String?
+  sourceRef   String?
+  createdAt   DateTime @default(now())
+}
+
+model TransportProfile {
+  id               String           @id @default(uuid())
+  caseId           String
+  case             Case             @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  mode             String           // WALKING, BICYCLE, MOTORCYCLE, CAR
+  label            String
+  speedKmh         Float
+  notes            String?
+  isochroneQueries IsochroneQuery[]
+}
+
+model IsochroneQuery {
+  id                 String           @id @default(uuid())
+  caseId             String
+  case               Case             @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  anchorId           String
+  transportProfileId String
+  transportProfile   TransportProfile @relation(fields: [transportProfileId], references: [id], onDelete: Cascade)
+  minutes            Int
+  resultGeoJson      String           // Stored as JSON string
+  cachedAt           DateTime         @default(now())
+}
+
+model ProbabilityModelRun {
+  id                String   @id @default(uuid())
+  caseId            String
+  case              Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  bufferMeters      Float
+  decayExponent     Float
+  anchorWeightsJson String   // JSON string of { anchorId: weight }
+  resultGridGeoJson String   // Stored as JSON string
+  createdAt         DateTime @default(now())
+}
